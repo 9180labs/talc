@@ -27,9 +27,10 @@ Talc automates all of this with simple commands.
 ## Requirements
 
 - **OS**: Arch Linux
-- **Ruby**: 3.2.0 or higher
+- **Ruby**: 4.0.1 or higher
 - **Dependencies**:
-  - dnsmasq (DNS server)
+  - systemd-resolved (system DNS resolver)
+  - dnsmasq (DNS server for `.internal` domains)
   - Caddy (reverse proxy)
   - sudo (for system configuration)
 
@@ -67,7 +68,8 @@ talc setup
 This will:
 - Create configuration directory (`~/.config/talc/`)
 - Initialize storage (`~/.config/talc/domains.json`)
-- Configure dnsmasq with wildcard DNS
+- Configure systemd-resolved to forward `.internal` queries to dnsmasq
+- Configure dnsmasq on port 5353 with wildcard DNS for `.internal` domains
 - Enable and start required services
 
 ## Quick Start
@@ -120,9 +122,16 @@ Talc Status
 ==================================================
 
 DNS (dnsmasq):
-  Installed: ✓
-  Running:   ✓
-  Enabled:   ✓
+  Installed:    ✓
+  Running:      ✓
+  Enabled:      ✓
+  Configured:   ✓
+  Port 5353:    ✓
+
+System DNS (systemd-resolved):
+  Running:      ✓
+  Enabled:      ✓
+  Configured:   ✓
 
 Proxy (Caddy):
   Installed: ✓
@@ -205,7 +214,7 @@ talc status
 
 #### `talc teardown [--confirm]`
 
-Remove all Talc configuration and domains.
+Remove all Talc configuration and domains, including dnsmasq and systemd-resolved configs.
 
 ```bash
 # Interactive confirmation
@@ -280,18 +289,24 @@ sudo systemctl restart caddy
 │  ┌──────────┐              ┌──────────────────────────┐   │
 │  │  Laptop  │              │   Development Machine    │   │
 │  │          │              │                          │   │
-│  │  Browser │──┐           │  ┌──────────┐            │   │
-│  └──────────┘  │           │  │ dnsmasq  │            │   │
-│                │           │  │ (DNS)    │            │   │
-│  ┌──────────┐  │           │  └────┬─────┘            │   │
-│  │  Phone   │──┼─myapp.──▶ │       │ *.internal →     │   │
-│  │          │  │  internal │       │ 192.168.1.155    │   │
-│  └──────────┘  │           │       │                  │   │
-│                │           │  ┌────▼─────┐            │   │
-│  ┌──────────┐  │           │  │  Caddy   │            │   │
-│  │  Tablet  │──┘           │  │ (Proxy)  │            │   │
-│  │          │              │  └────┬─────┘            │   │
-│  └──────────┘              │       │                  │   │
+│  │  Browser │──┐           │  ┌──────────────────┐    │   │
+│  └──────────┘  │           │  │ systemd-resolved │    │   │
+│                │           │  │ (port 53)        │    │   │
+│  ┌──────────┐  │           │  └────┬─────────────┘    │   │
+│  │  Phone   │──┼─myapp.──▶ │       │ .internal        │   │
+│  │          │  │  internal │       ▼ queries           │   │
+│  └──────────┘  │           │  ┌──────────┐            │   │
+│                │           │  │ dnsmasq  │            │   │
+│  ┌──────────┐  │           │  │ (port 5353)          │   │
+│  │  Tablet  │──┘           │  │ *.internal →         │   │
+│  │          │              │  │ 192.168.1.155        │   │
+│  └──────────┘              │  └────┬─────┘            │   │
+│                            │       │                  │   │
+│                            │  ┌────▼─────┐            │   │
+│                            │  │  Caddy   │            │   │
+│                            │  │ (Proxy)  │            │   │
+│                            │  └────┬─────┘            │   │
+│                            │       │                  │   │
 │                            │  ┌────▼──────────────┐   │   │
 │                            │  │  Your Services    │   │   │
 │                            │  │  :3000, :8080...  │   │   │
@@ -300,16 +315,18 @@ sudo systemctl restart caddy
 └─────────────────────────────────────────────────────────────┘
 ```
 
-1. **DNS (dnsmasq)**: Resolves `*.internal` to your machine's LAN IP
-2. **Proxy (Caddy)**: Routes requests from domains to local ports
-3. **Storage**: Persists domain configurations in JSON
-4. **CLI**: Manages everything with simple commands
+1. **System DNS (systemd-resolved)**: Listens on port 53 and forwards `.internal` queries to dnsmasq
+2. **DNS (dnsmasq)**: Listens on port 5353 and resolves `*.internal` to your machine's LAN IP
+3. **Proxy (Caddy)**: Routes requests from domains to local ports
+4. **Storage**: Persists domain configurations in JSON
+5. **CLI**: Manages everything with simple commands
 
 ### Files and Locations
 
 - **Config**: `~/.config/talc/config.yml`
 - **Storage**: `~/.config/talc/domains.json`
 - **DNS Config**: `/etc/dnsmasq.d/talc.conf`
+- **Resolved Config**: `/etc/systemd/resolved.conf.d/talc.conf`
 - **Caddy Routes**: Managed via Caddy API (port 2019)
 
 ## Network Setup
@@ -362,12 +379,30 @@ cat /etc/dnsmasq.d/talc.conf
 Should show:
 ```
 # Managed by Talc
+port=5353
+listen-address=127.0.0.1
+bind-interfaces
+no-resolv
 address=/.internal/192.168.1.155
 ```
 
-**Restart dnsmasq:**
+**Check systemd-resolved config:**
+```bash
+cat /etc/systemd/resolved.conf.d/talc.conf
+```
+
+Should show:
+```
+# Managed by Talc
+[Resolve]
+DNS=127.0.0.1:5353
+Domains=~internal
+```
+
+**Restart services:**
 ```bash
 sudo systemctl restart dnsmasq
+sudo systemctl restart systemd-resolved
 ```
 
 **Test DNS resolution:**
