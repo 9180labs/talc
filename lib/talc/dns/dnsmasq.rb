@@ -185,15 +185,20 @@ module Talc
 
         return if stdout.empty? # Port is free
 
-        # Check if it's our dnsmasq
+        # Only check for conflicts on 127.0.0.1 where dnsmasq actually binds.
+        # Other processes (e.g. Spotify/Avahi mDNS) may use port 5353 on 0.0.0.0
+        # or multicast addresses without conflicting.
         localhost_lines = stdout.lines.select do |line|
-          line.match?(/127\.0\.0\.1:#{DNSMASQ_PORT}\s/) && line.include?('dnsmasq')
+          line.match?(/127\.0\.0\.1:#{DNSMASQ_PORT}\s/)
         end
 
-        return unless localhost_lines.empty? # Our dnsmasq is using it, that's fine
+        return if localhost_lines.empty? # Nothing bound on 127.0.0.1, no conflict
 
-        # Something else is using the port
-        raise DNSError, "Port #{DNSMASQ_PORT} is in use by another process.\nPlease stop it before running setup."
+        # If it's our dnsmasq, that's fine
+        return if localhost_lines.all? { |line| line.include?('dnsmasq') }
+
+        # Something else is bound to 127.0.0.1 on this port
+        raise DNSError, "Port #{DNSMASQ_PORT} is in use on 127.0.0.1 by another process.\nPlease stop it before running setup."
       end
 
       # Rollback on configuration failure
