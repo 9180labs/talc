@@ -128,8 +128,8 @@ module Talc
         content.each_line do |line|
           line = line.strip
 
-          # Match domain line (e.g., "myapp.internal {")
-          if line =~ /^([\w\-.]+)\s*\{/
+          # Match domain line with optional wildcard (e.g., "myapp.internal, *.myapp.internal {")
+          if line =~ /^([\w\-.]+)(?:,\s*\*\.\1)?\s*\{/
             current_domain = $1
           # Match reverse_proxy line
           elsif line =~ /reverse_proxy\s+(.+):(\d+)/
@@ -151,7 +151,8 @@ module Talc
         content = +"# Managed by Talc\n\n"
 
         routes.each do |domain, config|
-          content << "#{domain} {\n"
+          # Support wildcard subdomains: myapp.internal, *.myapp.internal
+          content << "#{domain}, *.#{domain} {\n"
           content << "  reverse_proxy #{config[:ip]}:#{config[:port]}\n"
           content << "}\n\n"
         end

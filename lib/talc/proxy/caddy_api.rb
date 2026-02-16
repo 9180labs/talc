@@ -140,7 +140,7 @@ module Talc
       def build_route_config(domain, port, ip)
         {
           match: [{
-            host: [domain]
+            host: [domain, "*.#{domain}"]
           }],
           handle: [{
             handler: 'reverse_proxy',
