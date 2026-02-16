@@ -158,9 +158,8 @@ module Talc
 
       # Configure DNS
       puts "\n#{colorize('WARNING:', :yellow, :bold)} This will modify system DNS settings."
-      puts "  - systemd-resolved will be stopped and masked"
-      puts "  - /etc/resolv.conf will point to dnsmasq (127.0.0.1)"
-      puts "  - Backup will be saved to ~/.config/talc/dns_backup.json"
+      puts "  - systemd-resolved will be configured to forward .#{Config.new.domain_suffix} to dnsmasq"
+      puts "  - dnsmasq will listen on port 5353 for wildcard domain resolution"
       puts "  - You can restore with: #{colorize('talc teardown', :cyan)}"
 
       print "\nContinue? (yes/no): "
@@ -177,16 +176,10 @@ module Talc
         dns = DNS::Dnsmasq.new
         local_ip = config.local_ip || Network.detect_local_ip
 
-        # Check for old architecture before configuring
-        if dns.send(:old_architecture_detected?)
-          puts colorize("  Old architecture detected. Cleaning up old config files...", :yellow)
-        end
-
         dns.configure(local_ip, config.domain_suffix)
         puts colorize("  ✓ DNS configured for *.#{config.domain_suffix} → #{local_ip}", :green)
-        puts colorize("  ✓ dnsmasq listening on localhost:53", :green)
-        puts colorize("  ✓ /etc/resolv.conf points to dnsmasq", :green)
-        puts colorize("  ✓ systemd-resolved stopped and masked", :green)
+        puts colorize("  ✓ dnsmasq listening on localhost:5353", :green)
+        puts colorize("  ✓ systemd-resolved forwarding .#{config.domain_suffix} to dnsmasq", :green)
 
         # Enable and start dnsmasq
         unless System.service_enabled?('dnsmasq')
@@ -202,18 +195,12 @@ module Talc
           puts colorize("  ✓ dnsmasq service restarted", :green)
         end
 
-        # Verify dnsmasq is listening on port 53
+        # Verify dnsmasq is listening on port 5353
         sleep 0.5  # Give dnsmasq a moment to bind to the port
-        unless dns.send(:listening_on_port_53?)
-          port_info = dns.send(:check_port_53_status)
-          if port_info[:in_use]
-            puts colorize("  ⚠ Warning: Port 53 is in use by: #{port_info[:process]}", :yellow)
-            puts colorize("  ⚠ dnsmasq may not be listening on port 53", :yellow)
-          else
-            puts colorize("  ⚠ Warning: dnsmasq may not be listening on port 53 yet", :yellow)
-          end
+        unless dns.send(:listening_on_port?, DNS::Dnsmasq::DNSMASQ_PORT)
+          puts colorize("  ⚠ Warning: dnsmasq may not be listening on port 5353 yet", :yellow)
         else
-          puts colorize("  ✓ dnsmasq listening on port 53", :green)
+          puts colorize("  ✓ dnsmasq listening on port 5353", :green)
         end
 
         # Verify DNS resolution
@@ -275,19 +262,12 @@ module Talc
         puts "  Running:      #{format_status(dns[:dnsmasq][:running])}"
         puts "  Enabled:      #{format_status(dns[:dnsmasq][:enabled])}"
         puts "  Configured:   #{format_status(dns[:dnsmasq][:configured])}"
-        puts "  Port 53:      #{format_status(dns[:dnsmasq][:port])}"
+        puts "  Port 5353:    #{format_status(dns[:dnsmasq][:port])}"
 
-        puts "\n#{colorize('System DNS:', :cyan)}"
-        puts "  systemd-resolved: #{format_status(!dns[:systemd_resolved][:running])} (should be stopped)"
-        puts "  Masked:           #{format_status(dns[:systemd_resolved][:masked])}"
-        puts "  /etc/resolv.conf: #{dns[:resolv_conf][:managed_by_talc] ? colorize('Managed by Talc ✓', :green) : colorize('Not managed ✗', :red)}"
-
-        if dns[:resolv_conf][:content]
-          puts "\n#{colorize('  Current resolv.conf:', :cyan)}"
-          dns[:resolv_conf][:content].lines.each do |line|
-            puts "    #{line.strip}" unless line.strip.empty?
-          end
-        end
+        puts "\n#{colorize('System DNS (systemd-resolved):', :cyan)}"
+        puts "  Running:      #{format_status(dns[:systemd_resolved][:running])}"
+        puts "  Enabled:      #{format_status(dns[:systemd_resolved][:enabled])}"
+        puts "  Configured:   #{format_status(dns[:systemd_resolved][:configured])}"
 
         # Proxy Status
         proxy = status_info[:proxy]
@@ -319,12 +299,12 @@ module Talc
         puts "This will remove:"
         puts "  - All configured domains"
         puts "  - DNS configuration (/etc/dnsmasq.d/talc.conf)"
+        puts "  - systemd-resolved configuration (/etc/systemd/resolved.conf.d/talc.conf)"
         puts "  - Proxy configuration (Caddy routes)"
         puts "  - Domain storage (~/.config/talc/domains.json)"
         puts "\nThis will restore:"
-        puts "  - Original /etc/resolv.conf"
-        puts "  - systemd-resolved service (if it was running)"
-        puts "  - Your original DNS setup"
+        puts "  - systemd-resolved to default behavior (no domain forwarding)"
+        puts "  - dnsmasq to default configuration"
 
         print "\nAre you sure? Type 'yes' to confirm: "
         confirmation = $stdin.gets.chomp
