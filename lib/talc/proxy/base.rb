@@ -9,7 +9,9 @@ module Talc
       # @param domain [String] The full domain name (e.g., 'myapp.internal')
       # @param port [Integer] The local port to proxy to
       # @param ip [String] The IP address to proxy to (default: '127.0.0.1')
-      def add_route(domain, port, ip: '127.0.0.1')
+      # @param cert_path [String, nil] Optional path to TLS certificate for HTTPS
+      # @param key_path [String, nil] Optional path to TLS private key
+      def add_route(domain, port, ip: '127.0.0.1', cert_path: nil, key_path: nil)
         raise NotImplementedError, "#{self.class} must implement #add_route"
       end
 

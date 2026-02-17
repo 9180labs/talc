@@ -4,13 +4,14 @@ module Talc
   # Core business logic for managing domains
   # Orchestrates DNS, proxy, and storage operations with transaction support
   class DomainManager
-    attr_reader :config, :storage, :dns_provider, :proxy_provider
+    attr_reader :config, :storage, :dns_provider, :proxy_provider, :certificate_manager
 
-    def initialize(config: nil, storage: nil, dns_provider: nil, proxy_provider: nil)
+    def initialize(config: nil, storage: nil, dns_provider: nil, proxy_provider: nil, certificate_manager: nil)
       @config = config || Config.new
       @storage = storage || Storage.new
       @dns_provider = dns_provider || create_dns_provider
       @proxy_provider = proxy_provider || create_proxy_provider
+      @certificate_manager = certificate_manager || CertificateManager.new(certs_dir: @config.certs_dir)
       @dns_configured = false
     end
 
@@ -33,10 +34,20 @@ module Talc
       # Ensure DNS is configured (one-time setup)
       ensure_dns_configured!
 
-      # Add proxy route
+      # Generate wildcard TLS cert only when using Caddy API; Caddyfile provider uses on-demand TLS
+      cert_path = nil
+      key_path = nil
+      if @config.enable_tls && !@proxy_provider.is_a?(Proxy::CaddyFile)
+        paths = @certificate_manager.generate_for_domain(full_domain)
+        cert_path = paths[:cert_path]
+        key_path = paths[:key_path]
+      end
+
+      # Add proxy route (with optional TLS cert paths)
       begin
-        @proxy_provider.add_route(full_domain, port, ip: ip)
+        @proxy_provider.add_route(full_domain, port, ip: ip, cert_path: cert_path, key_path: key_path)
       rescue => e
+        @certificate_manager.remove(full_domain) if cert_path
         raise ProxyError, "Failed to add proxy route: #{e.message}"
       end
 
@@ -44,12 +55,13 @@ module Talc
       begin
         domain = @storage.add(name, port, ip: ip)
       rescue => e
-        # Rollback: remove proxy route
+        # Rollback: remove proxy route and cert
         begin
           @proxy_provider.remove_route(full_domain)
         rescue
           # Best effort rollback
         end
+        @certificate_manager.remove(full_domain) if cert_path
         raise StorageError, "Failed to save domain: #{e.message}"
       end
 
@@ -72,6 +84,9 @@ module Talc
         # Log but continue - maybe route was already removed
         warn "Warning: Failed to remove proxy route: #{e.message}"
       end
+
+      # Remove TLS cert files if we generated them (Caddy API); Caddyfile uses on-demand
+      @certificate_manager.remove(full_domain) if @config.enable_tls && !@proxy_provider.is_a?(Proxy::CaddyFile)
 
       # Remove from storage
       @storage.remove(name)
@@ -104,14 +119,25 @@ module Talc
       new_port = port || domain['port']
       new_ip = ip || domain['ip']
 
+      # Cert paths for re-add when using Caddy API with TLS (reuse existing cert)
+      cert_path = nil
+      key_path = nil
+      if @config.enable_tls && !@proxy_provider.is_a?(Proxy::CaddyFile) && @certificate_manager.exists?(full_domain)
+        cert_path = @certificate_manager.path_for_cert(full_domain)
+        key_path = @certificate_manager.path_for_key(full_domain)
+      end
+
       # Update proxy route (remove and re-add)
       begin
         @proxy_provider.remove_route(full_domain)
-        @proxy_provider.add_route(full_domain, new_port, ip: new_ip)
+        @proxy_provider.add_route(full_domain, new_port, ip: new_ip, cert_path: cert_path, key_path: key_path)
       rescue => e
         # Try to restore old route
+        use_certs = @config.enable_tls && !@proxy_provider.is_a?(Proxy::CaddyFile) && @certificate_manager.exists?(full_domain)
+        old_cert_path = use_certs ? @certificate_manager.path_for_cert(full_domain) : nil
+        old_key_path = use_certs ? @certificate_manager.path_for_key(full_domain) : nil
         begin
-          @proxy_provider.add_route(full_domain, domain['port'], ip: domain['ip'])
+          @proxy_provider.add_route(full_domain, domain['port'], ip: domain['ip'], cert_path: old_cert_path, key_path: old_key_path)
         rescue
           # Best effort restoration
         end
@@ -123,9 +149,12 @@ module Talc
         @storage.update(name, port: port, ip: ip)
       rescue => e
         # Try to restore old route
+        use_certs = @config.enable_tls && !@proxy_provider.is_a?(Proxy::CaddyFile) && @certificate_manager.exists?(full_domain)
+        old_cert_path = use_certs ? @certificate_manager.path_for_cert(full_domain) : nil
+        old_key_path = use_certs ? @certificate_manager.path_for_key(full_domain) : nil
         begin
           @proxy_provider.remove_route(full_domain)
-          @proxy_provider.add_route(full_domain, domain['port'], ip: domain['ip'])
+          @proxy_provider.add_route(full_domain, domain['port'], ip: domain['ip'], cert_path: old_cert_path, key_path: old_key_path)
         rescue
           # Best effort restoration
         end

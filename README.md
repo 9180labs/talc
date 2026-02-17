@@ -263,7 +263,22 @@ dns_provider: dnsmasq
 
 # Caddy API URL
 caddy_api_url: http://localhost:2019
+
+# Enable wildcard TLS for added domains (self-signed certs for https:// and https://*.domain)
+enable_tls: true
+
+# Directory for TLS certs (must be readable by Caddy; default works when Caddy runs as root)
+certs_dir: /etc/caddy/certs
 ```
+
+### Wildcard SSL (HTTPS)
+
+With TLS enabled (default), Talc serves HTTPS for each added domain (e.g. `myapp.internal` and `*.myapp.internal`).
+
+- **Caddy API**: Talc generates a self-signed wildcard cert per domain and loads it into Caddy. Certificates are stored under `certs_dir` and removed on `talc remove <name>`.
+- **Caddyfile (file-based)**: Talc modifies the main Caddyfile at `/etc/caddy/Caddyfile`. It writes a marked section at the top (between `# --- Managed by Talc ---` and `# --- End Talc ---`) with on-demand TLS, the `/talc-ask` endpoint, and your routes. The rest of the file is left unchanged.
+
+Add domains as usual: `talc add myapp --port 3000`. Access via **https://myapp.internal**. For local Caddy CA certs you may need to trust Caddy's root (e.g. `caddy trust`) or accept the browser warning.
 
 ### Manual Configuration
 
@@ -325,7 +340,7 @@ sudo systemctl restart caddy
 - **Storage**: `~/.config/talc/domains.json`
 - **DNS Config**: `/etc/dnsmasq.d/talc.conf`
 - **Resolved Config**: `/etc/systemd/resolved.conf.d/talc.conf`
-- **Caddy Routes**: Managed via Caddy API (port 2019)
+- **Caddy**: Prefer Caddy API (port 2019). If the API is unreachable, talc edits the main Caddyfile at `/etc/caddy/Caddyfile` (a marked section at the top; your content is preserved below it).
 
 ## Network Setup
 

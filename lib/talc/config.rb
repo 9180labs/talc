@@ -10,8 +10,10 @@ module Talc
     DEFAULT_CONFIG_PATH = File.join(Dir.home, '.config', 'talc', 'config.yml')
     DEFAULT_DOMAIN_SUFFIX = 'internal'
     DEFAULT_CADDY_API_URL = 'http://localhost:2019'
+    DEFAULT_CERTS_DIR = '/etc/caddy/certs'
 
-    attr_reader :domain_suffix, :local_ip, :dns_provider, :caddy_api_url, :config_path
+    attr_reader :domain_suffix, :local_ip, :dns_provider, :caddy_api_url, :config_path,
+                :enable_tls, :certs_dir
 
     def initialize(config_path: DEFAULT_CONFIG_PATH)
       @config_path = config_path
@@ -26,7 +28,9 @@ module Talc
         'domain_suffix' => DEFAULT_DOMAIN_SUFFIX,
         'local_ip' => 'auto',
         'dns_provider' => 'dnsmasq',
-        'caddy_api_url' => DEFAULT_CADDY_API_URL
+        'caddy_api_url' => DEFAULT_CADDY_API_URL,
+        'enable_tls' => true,
+        'certs_dir' => DEFAULT_CERTS_DIR
       }
 
       File.write(path, YAML.dump(default_config))
@@ -70,6 +74,8 @@ module Talc
       @local_ip = config['local_ip'] == 'auto' ? nil : config['local_ip']
       @dns_provider = config['dns_provider'] || 'dnsmasq'
       @caddy_api_url = config['caddy_api_url'] || DEFAULT_CADDY_API_URL
+      @enable_tls = config.key?('enable_tls') ? config['enable_tls'] : true
+      @certs_dir = config['certs_dir'] || DEFAULT_CERTS_DIR
     end
 
     def apply_defaults
@@ -77,6 +83,8 @@ module Talc
       @local_ip = nil
       @dns_provider = 'dnsmasq'
       @caddy_api_url = DEFAULT_CADDY_API_URL
+      @enable_tls = true
+      @certs_dir = DEFAULT_CERTS_DIR
     end
   end
 end

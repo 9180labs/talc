@@ -22,8 +22,10 @@ module Talc
       end
 
       # Add a route via Caddy API
-      def add_route(domain, port, ip: '127.0.0.1')
+      def add_route(domain, port, ip: '127.0.0.1', cert_path: nil, key_path: nil)
         raise ProxyError, "Caddy is not installed" unless installed?
+
+        ensure_server_exists
 
         route = build_route_config(domain, port, ip)
 
@@ -34,6 +36,11 @@ module Talc
 
           unless response.is_a?(Net::HTTPSuccess)
             raise ProxyError, "Failed to add route: #{response.code} #{response.message}"
+          end
+
+          # Load TLS certificate so Caddy serves HTTPS on :443 for this domain
+          if cert_path && key_path
+            load_certificate(cert_path, key_path)
           end
         rescue => e
           raise ProxyError, "Failed to add route via Caddy API: #{e.message}"
@@ -116,15 +123,15 @@ module Talc
         false
       end
 
-      # Ensure the talc server exists in Caddy config
+      # Ensure the talc server exists in Caddy config (listen on 80 and 443 for TLS)
       def ensure_server_exists
         path = "/config/apps/http/servers/#{SERVER_NAME}"
         response = get(path)
 
         if response.code == '404'
-          # Create the server
+          # Create the server; listen on :443 so Caddy can serve HTTPS with loaded certs
           server_config = {
-            listen: [':80'],
+            listen: [':80', ':443'],
             routes: []
           }
           response = post_json(path, server_config)
@@ -132,6 +139,36 @@ module Talc
           unless response.is_a?(Net::HTTPSuccess)
             raise ProxyError, "Failed to create Caddy server: #{response.code}"
           end
+        else
+          # Server exists; ensure it listens on :443 for TLS
+          ensure_listen_443(path, response.body)
+        end
+      end
+
+      def ensure_listen_443(server_path, body)
+        data = JSON.parse(body)
+        listen = data['listen'] || data[:listen] || [':80']
+        listen = listen.map(&:to_s)
+        return if listen.include?(':443')
+
+        listen << ':443' unless listen.include?(':443')
+        response = patch_json(server_path + '/listen', listen)
+        unless response.is_a?(Net::HTTPSuccess)
+          raise ProxyError, "Failed to add :443 listener: #{response.code}"
+        end
+      end
+
+      # Load a certificate and key into Caddy's TLS app (for HTTPS on this domain)
+      def load_certificate(cert_path, key_path)
+        path = '/config/apps/tls/certificates'
+        payload = {
+          'load_files' => [
+            { 'certificate' => cert_path, 'key' => key_path }
+          ]
+        }
+        response = post_json(path, payload)
+        unless response.is_a?(Net::HTTPSuccess)
+          raise ProxyError, "Failed to load TLS certificate: #{response.code} #{response.body}"
         end
       end
 
@@ -192,6 +229,15 @@ module Talc
         uri = URI.join(@api_url, path)
         http = Net::HTTP.new(uri.host, uri.port)
         request = Net::HTTP::Delete.new(uri.path)
+        http.request(request)
+      end
+
+      def patch_json(path, data)
+        uri = URI.join(@api_url, path)
+        http = Net::HTTP.new(uri.host, uri.port)
+        request = Net::HTTP::Patch.new(uri.path)
+        request['Content-Type'] = 'application/json'
+        request.body = JSON.generate(data)
         http.request(request)
       end
     end

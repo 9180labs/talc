@@ -205,8 +205,19 @@ module Talc
         # If it's our dnsmasq, that's fine
         return if localhost_lines.all? { |line| line.include?('dnsmasq') }
 
-        # Something else is bound to 127.0.0.1 on this port
-        raise DNSError, "Port #{DNSMASQ_PORT} is in use on 127.0.0.1 by another process.\nPlease stop it before running setup."
+        # Something else is bound to 127.0.0.1 on this port; show what (process and PID from ss output)
+        line = localhost_lines.first.to_s
+        process_info = if line =~ %r{users:\(\("([^"]+)",pid=(\d+)}
+          "Process: #{$1} (PID #{$2})"
+        else
+          line.strip
+        end
+        process_info = nil if process_info.nil? || process_info.empty?
+
+        msg = "Port #{DNSMASQ_PORT} is in use on 127.0.0.1 by another process."
+        msg += "\n#{process_info}" if process_info
+        msg += "\nPlease stop it before running setup (e.g. sudo systemctl stop <service>, or kill the PID)."
+        raise DNSError, msg
       end
 
       # Rollback on configuration failure
