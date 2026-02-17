@@ -130,9 +130,9 @@ module Talc
         return
       end
 
-      # Check sudo
-      unless System.sudo_available?
-        error("\nsudo is required but not available.")
+      # Check sudo/doas
+      unless System.privilege_escalation_available?
+        error("\nsudo or doas is required but not available.")
         return
       end
 

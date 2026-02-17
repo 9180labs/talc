@@ -176,7 +176,7 @@ module Talc
 
       # Validate sudo, dnsmasq installed, systemd-resolved running
       def preflight_checks
-        raise DNSError, "sudo is not available" unless System.sudo_available?
+        raise DNSError, "sudo or doas is not available" unless System.privilege_escalation_available?
         raise DNSError, "dnsmasq is not installed" unless installed?
 
         unless System.service_running?(SYSTEMD_RESOLVED_SERVICE_NAME)

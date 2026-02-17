@@ -1,6 +1,6 @@
 # Talc
 
-**Manage `.internal` domains with DNS and reverse proxy on Arch Linux**
+**Manage `.internal` domains with DNS and reverse proxy on [Omarchy](https://omarchy.org)**
 
 Talc is a CLI tool that makes it easy to access your local development services via memorable domain names across your entire local network. Instead of remembering `localhost:3000`, `192.168.1.155:8080`, etc., you can use clean URLs like `myapp.internal` and `api.internal`.
 
@@ -22,17 +22,17 @@ Talc automates all of this with simple commands.
 - **Automatic DNS**: Wildcard DNS resolution via dnsmasq
 - **Reverse Proxy**: Automatic routing via Caddy
 - **Persistent**: Domains survive reboots
-- **Arch Linux**: Designed for Arch Linux with systemd
+- **Omarchy**: Built for [Omarchy](https://omarchy.org), should work on any Arch-based distro with systemd-resolved
 
 ## Requirements
 
-- **OS**: Arch Linux
+- **OS**: [Omarchy](https://omarchy.org) (should also work on any Arch-based distro with systemd-resolved — [open an issue](https://github.com/9180labs/talc/issues) if not)
 - **Ruby**: 4.0.1 or higher
 - **Dependencies**:
   - systemd-resolved (system DNS resolver)
   - dnsmasq (DNS server for `.internal` domains)
   - Caddy (reverse proxy)
-  - sudo (for system configuration)
+  - sudo or doas (for privilege escalation)
 
 ## Installation
 
@@ -47,7 +47,7 @@ sudo pacman -S dnsmasq caddy
 From source:
 
 ```bash
-git clone https://github.com/matrix9180/talc.git
+git clone https://github.com/9180labs/talc.git
 cd talc
 bundle install
 bundle exec rake install
@@ -489,7 +489,7 @@ systemctl is-enabled caddy
 ### Setup
 
 ```bash
-git clone https://github.com/matrix9180/talc.git
+git clone https://github.com/9180labs/talc.git
 cd talc
 bundle install
 ```
@@ -554,7 +554,7 @@ Talc::
 
 ## Contributing
 
-Bug reports and pull requests are welcome on GitHub at https://github.com/matrix9180/talc.
+Bug reports and pull requests are welcome on GitHub at https://github.com/9180labs/talc.
 
 1. Fork the repository
 2. Create your feature branch (`git checkout -b feature/my-feature`)
@@ -571,4 +571,4 @@ The gem is available as open source under the terms of the [MIT License](https:/
 - Built with [Thor](https://github.com/rails/thor) for CLI
 - Uses [dnsmasq](https://thekelleys.org.uk/dnsmasq/doc.html) for DNS
 - Uses [Caddy](https://caddyserver.com/) for reverse proxy
-- Designed for [Arch Linux](https://archlinux.org/)
+- Built for [Omarchy](https://omarchy.org), compatible with [Arch Linux](https://archlinux.org/) and derivatives

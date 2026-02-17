@@ -1,21 +1,31 @@
 # frozen_string_literal: true
 
 module Talc
-  # System helpers for executing commands with sudo and managing systemd services
+  # System helpers for executing commands with sudo/doas and managing systemd services
   class System
     # Check if sudo is available
     def self.sudo_available?
       system('which sudo > /dev/null 2>&1')
     end
 
-    # Execute a command with sudo
+    # Check if doas is available
+    def self.doas_available?
+      system('which doas > /dev/null 2>&1')
+    end
+
+    # Check if any privilege escalation tool is available (sudo or doas)
+    def self.privilege_escalation_available?
+      sudo_available? || doas_available?
+    end
+
+    # Execute a command with sudo/doas
     # Returns [stdout, stderr, status]
     def self.sudo_exec(command)
-      unless sudo_available?
-        raise PermissionError, "sudo is not available. Please install sudo."
+      unless privilege_escalation_available?
+        raise PermissionError, "sudo or doas is not available. Please install sudo or doas."
       end
 
-      full_command = "sudo #{command}"
+      full_command = "#{escalation_command} #{command}"
       stdout, stderr, status = exec_command(full_command)
 
       unless status.success?
@@ -137,5 +147,15 @@ module Talc
     def self.delete_file_sudo(path)
       sudo_exec("rm -f #{path}")
     end
+
+    # Returns the privilege escalation command, preferring sudo over doas
+    def self.escalation_command
+      if sudo_available?
+        "sudo"
+      elsif doas_available?
+        "doas"
+      end
+    end
+    private_class_method :escalation_command
   end
 end
