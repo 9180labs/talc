@@ -291,7 +291,7 @@ sudo systemctl restart caddy
  └──────────┘  │             │  │  systemd-resolved   │  │
                │             │  │  (port 53)          │  │
  ┌──────────┐  │             │  └──────────┬──────────┘  │
- │  Phone   │──┼── myapp. ─▶│             │ .internal   │
+ │  Phone   │──┼── myapp. ─▶ │             │ .internal   │
  │          │  │   internal  │             ▼ queries     │
  └──────────┘  │             │  ┌─────────────────────┐  │
                │             │  │  dnsmasq            │  │
