@@ -111,13 +111,21 @@ module Talc
           errors << "Failed to remove systemd-resolved config: #{e.message}"
         end
 
-        # Restart services to apply clean state
+        # Stop and disable dnsmasq (it was started by Talc; without our config
+        # it reverts to port 53 which conflicts with systemd-resolved)
+        begin
+          System.stop_service(SERVICE_NAME) if System.service_running?(SERVICE_NAME)
+          System.disable_service(SERVICE_NAME) if System.service_enabled?(SERVICE_NAME)
+        rescue => e
+          errors << "Failed to stop dnsmasq: #{e.message}"
+        end
+
+        # Restart systemd-resolved to remove .internal forwarding
         begin
           System.sudo_exec("systemctl daemon-reload")
           System.restart_service(SYSTEMD_RESOLVED_SERVICE_NAME) if System.service_running?(SYSTEMD_RESOLVED_SERVICE_NAME)
-          System.restart_service(SERVICE_NAME) if System.service_running?(SERVICE_NAME)
         rescue => e
-          errors << "Failed to restart services: #{e.message}"
+          errors << "Failed to restart systemd-resolved: #{e.message}"
         end
 
         # Report errors if any occurred

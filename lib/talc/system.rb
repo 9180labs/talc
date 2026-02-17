@@ -70,6 +70,11 @@ module Talc
       sudo_exec("systemctl enable #{service_name}")
     end
 
+    # Disable a systemd service
+    def self.disable_service(service_name)
+      sudo_exec("systemctl disable #{service_name}")
+    end
+
     # Mask a systemd service
     def self.mask_service(service_name)
       sudo_exec("systemctl mask #{service_name}")

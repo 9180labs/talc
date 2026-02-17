@@ -210,4 +210,5 @@ talc teardown
 This will:
 1. Remove `/etc/dnsmasq.d/talc.conf`
 2. Remove `/etc/systemd/resolved.conf.d/talc.conf`
-3. Restart both services to apply default configuration
+3. Stop and disable dnsmasq (without Talc's config it would conflict with systemd-resolved on port 53)
+4. Restart systemd-resolved to remove `.internal` forwarding

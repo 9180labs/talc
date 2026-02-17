@@ -302,9 +302,9 @@ module Talc
         puts "  - systemd-resolved configuration (/etc/systemd/resolved.conf.d/talc.conf)"
         puts "  - Proxy configuration (Caddy routes)"
         puts "  - Domain storage (~/.config/talc/domains.json)"
-        puts "\nThis will restore:"
-        puts "  - systemd-resolved to default behavior (no domain forwarding)"
-        puts "  - dnsmasq to default configuration"
+        puts "\nThis will:"
+        puts "  - Stop and disable dnsmasq"
+        puts "  - Restore systemd-resolved to default behavior (no domain forwarding)"
 
         print "\nAre you sure? Type 'yes' to confirm: "
         confirmation = $stdin.gets.chomp
