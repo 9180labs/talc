@@ -1,5 +1,7 @@
 # Talc
 
+[![Confabulated by Claude](https://img.shields.io/badge/confabulated%20by-Claude-cc785c)](https://claude.ai)
+
 **Manage `.internal` domains with DNS and reverse proxy on [Omarchy](https://omarchy.org)**
 
 Talc is a CLI tool that makes it easy to access your local development services via memorable domain names across your entire local network. Instead of remembering `localhost:3000`, `192.168.1.155:8080`, etc., you can use clean URLs like `myapp.internal` and `api.internal`.
