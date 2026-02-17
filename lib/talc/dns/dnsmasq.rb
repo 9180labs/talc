@@ -3,8 +3,8 @@
 module Talc
   module DNS
     # Dnsmasq DNS provider implementation
-    # Architecture: systemd-resolved (port 53) → dnsmasq (port 5353)
-    # systemd-resolved forwards .internal domains to dnsmasq on localhost:5353
+    # Architecture: systemd-resolved (port 53) → dnsmasq (port 5335)
+    # systemd-resolved forwards .internal domains to dnsmasq on localhost:5335
     #
     # Configuration Issue & Solution:
     # Problem: dnsmasq wasn't loading config files from /etc/dnsmasq.d/ even though
@@ -19,7 +19,7 @@ module Talc
       SYSTEMD_RESOLVED_SERVICE_NAME = 'systemd-resolved'
       SYSTEMD_RESOLVED_CONFIG_PATH = '/etc/systemd/resolved.conf.d/talc.conf'
       DNSMASQ_CONF_PATH = '/etc/dnsmasq.conf'
-      DNSMASQ_PORT = 5353
+      DNSMASQ_PORT = 5335
 
       def initialize
         @config_path = CONFIG_PATH
@@ -33,7 +33,7 @@ module Talc
           # Enable conf-dir in main dnsmasq.conf if needed (FIX for config loading issue)
           enable_dnsmasq_conf_dir
 
-          # Write dnsmasq config for port 5353
+          # Write dnsmasq config for port 5335
           System.write_file_sudo(@config_path, generate_dnsmasq_config(local_ip, domain_suffix))
 
           # Configure systemd-resolved to forward .internal to dnsmasq
@@ -175,18 +175,18 @@ module Talc
           raise DNSError, "systemd-resolved is not running. Please start it with: sudo systemctl start systemd-resolved"
         end
 
-        # Check if port 5353 is available (or only used by dnsmasq)
+        # Check if port 5335 is available (or only used by dnsmasq)
         check_dnsmasq_port_availability
       end
 
-      # Check if port 5353 is available or only used by our dnsmasq
+      # Check if port 5335 is available or only used by our dnsmasq
       def check_dnsmasq_port_availability
         stdout, _stderr, _status = System.exec_command("ss -tulpn 2>/dev/null | grep ':#{DNSMASQ_PORT} '")
 
         return if stdout.empty? # Port is free
 
         # Only check for conflicts on 127.0.0.1 where dnsmasq actually binds.
-        # Other processes (e.g. Spotify/Avahi mDNS) may use port 5353 on 0.0.0.0
+        # Other processes (e.g. Spotify/Avahi mDNS) may use port 5335 on 0.0.0.0
         # or multicast addresses without conflicting.
         localhost_lines = stdout.lines.select do |line|
           line.match?(/127\.0\.0\.1:#{DNSMASQ_PORT}\s/)

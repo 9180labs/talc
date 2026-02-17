@@ -159,7 +159,7 @@ module Talc
       # Configure DNS
       puts "\n#{colorize('WARNING:', :yellow, :bold)} This will modify system DNS settings."
       puts "  - systemd-resolved will be configured to forward .#{Config.new.domain_suffix} to dnsmasq"
-      puts "  - dnsmasq will listen on port 5353 for wildcard domain resolution"
+      puts "  - dnsmasq will listen on port 5335 for wildcard domain resolution"
       puts "  - You can restore with: #{colorize('talc teardown', :cyan)}"
 
       print "\nContinue? (yes/no): "
@@ -178,7 +178,7 @@ module Talc
 
         dns.configure(local_ip, config.domain_suffix)
         puts colorize("  ✓ DNS configured for *.#{config.domain_suffix} → #{local_ip}", :green)
-        puts colorize("  ✓ dnsmasq listening on localhost:5353", :green)
+        puts colorize("  ✓ dnsmasq listening on localhost:5335", :green)
         puts colorize("  ✓ systemd-resolved forwarding .#{config.domain_suffix} to dnsmasq", :green)
 
         # Enable and start dnsmasq
@@ -195,12 +195,12 @@ module Talc
           puts colorize("  ✓ dnsmasq service restarted", :green)
         end
 
-        # Verify dnsmasq is listening on port 5353
+        # Verify dnsmasq is listening on port 5335
         sleep 0.5  # Give dnsmasq a moment to bind to the port
         unless dns.send(:listening_on_port?, DNS::Dnsmasq::DNSMASQ_PORT)
-          puts colorize("  ⚠ Warning: dnsmasq may not be listening on port 5353 yet", :yellow)
+          puts colorize("  ⚠ Warning: dnsmasq may not be listening on port 5335 yet", :yellow)
         else
-          puts colorize("  ✓ dnsmasq listening on port 5353", :green)
+          puts colorize("  ✓ dnsmasq listening on port 5335", :green)
         end
 
         # Verify DNS resolution
@@ -262,7 +262,7 @@ module Talc
         puts "  Running:      #{format_status(dns[:dnsmasq][:running])}"
         puts "  Enabled:      #{format_status(dns[:dnsmasq][:enabled])}"
         puts "  Configured:   #{format_status(dns[:dnsmasq][:configured])}"
-        puts "  Port 5353:    #{format_status(dns[:dnsmasq][:port])}"
+        puts "  Port 5335:    #{format_status(dns[:dnsmasq][:port])}"
 
         puts "\n#{colorize('System DNS (systemd-resolved):', :cyan)}"
         puts "  Running:      #{format_status(dns[:systemd_resolved][:running])}"

@@ -5,16 +5,16 @@
 Talc uses a two-tier DNS architecture to provide wildcard domain resolution for local development:
 
 ```
-Client → systemd-resolved (port 53) → dnsmasq (port 5353)
+Client → systemd-resolved (port 53) → dnsmasq (port 5335)
          ↓ (forwards .internal)
 ```
 
 - **systemd-resolved**: System DNS resolver running on port 53
   - Handles all DNS queries from applications
-  - Configured to forward queries for `.internal` domains to dnsmasq on localhost:5353
+  - Configured to forward queries for `.internal` domains to dnsmasq on localhost:5335
   - Handles all other DNS queries normally (using system's upstream DNS servers)
 
-- **dnsmasq**: Wildcard DNS resolver running on port 5353
+- **dnsmasq**: Wildcard DNS resolver running on port 5335
   - Receives only `.internal` domain queries from systemd-resolved
   - Provides wildcard resolution (e.g., `*.myapp.internal` → `127.0.0.1`)
   - No upstream DNS needed (only handles `.internal` queries)
@@ -33,9 +33,9 @@ Client → systemd-resolved (port 53) → dnsmasq (port 5353)
 
 ```ini
 # Managed by Talc
-# Forward all .internal DNS queries to dnsmasq on localhost:5353
+# Forward all .internal DNS queries to dnsmasq on localhost:5335
 [Resolve]
-DNS=127.0.0.1:5353
+DNS=127.0.0.1:5335
 Domains=~internal
 ```
 
@@ -46,8 +46,8 @@ The `~internal` syntax tells systemd-resolved to route only `.internal` queries 
 
 ```
 # Managed by Talc
-# Architecture: systemd-resolved (port 53) forwards .internal → dnsmasq (port 5353)
-port=5353
+# Architecture: systemd-resolved (port 53) forwards .internal → dnsmasq (port 5335)
+port=5335
 listen-address=127.0.0.1
 bind-interfaces
 
@@ -115,7 +115,7 @@ resolvectl status
 # Should show:
 # Link ... (...)
 #   ...
-#   DNS Servers: 127.0.0.1:5353
+#   DNS Servers: 127.0.0.1:5335
 #   DNS Domain: ~internal
 ```
 
@@ -128,9 +128,9 @@ cat /etc/dnsmasq.d/talc.conf
 # Verify conf-dir is enabled
 grep "^conf-dir=/etc/dnsmasq.d/" /etc/dnsmasq.conf
 
-# Check dnsmasq is listening on port 5353
-sudo ss -tulpn | grep ':5353.*dnsmasq'
-# Should show: 127.0.0.1:5353 ... dnsmasq
+# Check dnsmasq is listening on port 5335
+sudo ss -tulpn | grep ':5335.*dnsmasq'
+# Should show: 127.0.0.1:5335 ... dnsmasq
 ```
 
 ### Test DNS Resolution
@@ -157,9 +157,9 @@ resolvectl query myapp.internal
    systemctl status systemd-resolved
    ```
 
-2. Check dnsmasq is running on port 5353:
+2. Check dnsmasq is running on port 5335:
    ```bash
-   sudo ss -tulpn | grep ':5353.*dnsmasq'
+   sudo ss -tulpn | grep ':5335.*dnsmasq'
    ```
 
 3. Verify conf-dir is enabled in `/etc/dnsmasq.conf`:
@@ -172,13 +172,13 @@ resolvectl query myapp.internal
    resolvectl status
    ```
 
-### Port 5353 already in use
+### Port 5335 already in use
 
-If another service is using port 5353:
+If another service is using port 5335:
 
 ```bash
 # Find what's using the port
-sudo ss -tulpn | grep ':5353'
+sudo ss -tulpn | grep ':5335'
 
 # Stop the conflicting service
 sudo systemctl stop <service-name>

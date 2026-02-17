@@ -18,7 +18,7 @@ Talc automates all of this with simple commands.
 ## Features
 
 - **Simple CLI**: Add domains with `talc add myapp --port 3000`
-- **Network-wide**: Access from any device on your LAN
+- **Network-wide**: Access from any device on your LAN (with [DNS configuration](#network-setup))
 - **Automatic DNS**: Wildcard DNS resolution via dnsmasq
 - **Reverse Proxy**: Automatic routing via Caddy
 - **Persistent**: Domains survive reboots
@@ -69,7 +69,7 @@ This will:
 - Create configuration directory (`~/.config/talc/`)
 - Initialize storage (`~/.config/talc/domains.json`)
 - Configure systemd-resolved to forward `.internal` queries to dnsmasq
-- Configure dnsmasq on port 5353 with wildcard DNS for `.internal` domains
+- Configure dnsmasq on port 5335 with wildcard DNS for `.internal` domains
 - Enable and start required services
 
 ## Quick Start
@@ -80,7 +80,7 @@ This will:
 talc add myapp --port 3000
 ```
 
-Now you can access your service at `http://myapp.internal` from any device on your LAN!
+Now you can access your service at `http://myapp.internal`! For access from other devices on your LAN, see [Network Setup](#network-setup).
 
 ### List domains
 
@@ -126,7 +126,7 @@ DNS (dnsmasq):
   Running:      ✓
   Enabled:      ✓
   Configured:   ✓
-  Port 5353:    ✓
+  Port 5335:    ✓
 
 System DNS (systemd-resolved):
   Running:      ✓
@@ -283,40 +283,36 @@ sudo systemctl restart caddy
 ### Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                         Your LAN                            │
-│                                                             │
-│  ┌──────────┐              ┌──────────────────────────┐   │
-│  │  Laptop  │              │   Development Machine    │   │
-│  │          │              │                          │   │
-│  │  Browser │──┐           │  ┌──────────────────┐    │   │
-│  └──────────┘  │           │  │ systemd-resolved │    │   │
-│                │           │  │ (port 53)        │    │   │
-│  ┌──────────┐  │           │  └────┬─────────────┘    │   │
-│  │  Phone   │──┼─myapp.──▶ │       │ .internal        │   │
-│  │          │  │  internal │       ▼ queries           │   │
-│  └──────────┘  │           │  ┌──────────┐            │   │
-│                │           │  │ dnsmasq  │            │   │
-│  ┌──────────┐  │           │  │ (port 5353)          │   │
-│  │  Tablet  │──┘           │  │ *.internal →         │   │
-│  │          │              │  │ 192.168.1.155        │   │
-│  └──────────┘              │  └────┬─────┘            │   │
-│                            │       │                  │   │
-│                            │  ┌────▼─────┐            │   │
-│                            │  │  Caddy   │            │   │
-│                            │  │ (Proxy)  │            │   │
-│                            │  └────┬─────┘            │   │
-│                            │       │                  │   │
-│                            │  ┌────▼──────────────┐   │   │
-│                            │  │  Your Services    │   │   │
-│                            │  │  :3000, :8080...  │   │   │
-│                            │  └───────────────────┘   │   │
-│                            └──────────────────────────┘   │
-└─────────────────────────────────────────────────────────────┘
+                Your LAN
+ ┌──────────┐                ┌───────────────────────────┐
+ │  Laptop  │                │   Development Machine     │
+ │          │                │                           │
+ │  Browser │──┐             │  ┌─────────────────────┐  │
+ └──────────┘  │             │  │  systemd-resolved   │  │
+               │             │  │  (port 53)          │  │
+ ┌──────────┐  │             │  └──────────┬──────────┘  │
+ │  Phone   │──┼── myapp. ─▶│             │ .internal   │
+ │          │  │   internal  │             ▼ queries     │
+ └──────────┘  │             │  ┌─────────────────────┐  │
+               │             │  │  dnsmasq            │  │
+ ┌──────────┐  │             │  │  (port 5335)        │  │
+ │  Tablet  │──┘             │  │  *.internal →       │  │
+ │          │                │  │  192.168.1.155      │  │
+ └──────────┘                │  └──────────┬──────────┘  │
+                             │             │             │
+                             │  ┌──────────▼──────────┐  │
+                             │  │  Caddy (Proxy)      │  │
+                             │  └──────────┬──────────┘  │
+                             │             │             │
+                             │  ┌──────────▼──────────┐  │
+                             │  │  Your Services      │  │
+                             │  │  :3000, :8080...    │  │
+                             │  └─────────────────────┘  │
+                             └───────────────────────────┘
 ```
 
 1. **System DNS (systemd-resolved)**: Listens on port 53 and forwards `.internal` queries to dnsmasq
-2. **DNS (dnsmasq)**: Listens on port 5353 and resolves `*.internal` to your machine's LAN IP
+2. **DNS (dnsmasq)**: Listens on port 5335 and resolves `*.internal` to your machine's LAN IP
 3. **Proxy (Caddy)**: Routes requests from domains to local ports
 4. **Storage**: Persists domain configurations in JSON
 5. **CLI**: Manages everything with simple commands
@@ -379,7 +375,7 @@ cat /etc/dnsmasq.d/talc.conf
 Should show:
 ```
 # Managed by Talc
-port=5353
+port=5335
 listen-address=127.0.0.1
 bind-interfaces
 no-resolv
@@ -395,7 +391,7 @@ Should show:
 ```
 # Managed by Talc
 [Resolve]
-DNS=127.0.0.1:5353
+DNS=127.0.0.1:5335
 Domains=~internal
 ```
 
