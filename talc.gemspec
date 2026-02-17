@@ -12,12 +12,12 @@ Gem::Specification.new do |spec|
   spec.description = "Talc is a CLI tool for managing .internal domains on Arch Linux. " \
                      "It integrates with dnsmasq for DNS resolution and Caddy for reverse proxying, " \
                      "enabling easy access to local services via memorable domain names across your LAN."
-  spec.homepage = "https://github.com/matrix9180/talc"
+  spec.homepage = "https://github.com/9180labs/talc"
   spec.license = "MIT"
   spec.required_ruby_version = ">= 4.0.1"
 
   spec.metadata["homepage_uri"] = spec.homepage
-  spec.metadata["source_code_uri"] = "https://github.com/matrix9180/talc"
+  spec.metadata["source_code_uri"] = "https://github.com/9180labs/talc"
 
   # Specify which files should be added to the gem when it is released.
   # The `git ls-files -z` loads the files in the RubyGem that have been added into git.
