@@ -163,15 +163,12 @@ module Talc
         CONFIG
       end
 
-      # Verify dnsmasq is listening on specified port on localhost
+      # Verify something is listening on the specified port on localhost.
+      # Note: ss doesn't show process names for root-owned processes when run as a
+      # non-root user, so we just check the address/port binding directly.
       def listening_on_port?(port)
-        stdout, _stderr, status = System.exec_command("ss -tulpn 2>/dev/null | grep ':#{port}.*dnsmasq'")
-        return false unless status.success? && !stdout.empty?
-
-        # Check if dnsmasq is bound to localhost (127.0.0.1)
-        stdout.lines.any? do |line|
-          line.include?('dnsmasq') && line.match?(/127\.0\.0\.1:#{port}\s/)
-        end
+        stdout, _stderr, _status = System.exec_command("ss -tulpn 2>/dev/null")
+        stdout.lines.any? { |line| line.match?(/127\.0\.0\.1:#{port}\s/) }
       end
 
       # Validate sudo, dnsmasq installed, systemd-resolved running
